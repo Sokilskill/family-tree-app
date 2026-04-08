@@ -1,25 +1,84 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Menu, Plus } from "lucide-react";
+import { Loader2, Menu, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "../components/ui/button";
 import { Sidebar } from "../components/Sidebar";
 import { FamilyTree } from "../components/FamilyTree";
 import { PersonDetails } from "../components/PersonDetails";
 import { AddPersonForm } from "../components/AddPersonForm";
-import { Person, FamilyTreeFilters } from "../types/person";
-import { mockPersons } from "../data/mockData";
+import type { FamilyTreeFilters, Person } from "../types/person";
+import {
+  createFamilyPerson,
+  listFamilyPersons,
+  updateFamilyPerson,
+} from "../lib/family";
+import { useUserStore } from "../../store/useUserStore";
 
 export function FamilyTreePage() {
-  const [persons, setPersons] = useState<Person[]>(mockPersons);
+  const user = useUserStore((state) => state.user);
+  const [persons, setPersons] = useState<Person[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FamilyTreeFilters>({
     gender: "all",
     alive: "all",
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPersons() {
+      if (!user) {
+        if (isMounted) {
+          setPersons([]);
+          setIsLoading(false);
+          setLoadError(null);
+        }
+        return;
+      }
+
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const nextPersons = await listFamilyPersons(user.id);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setPersons(nextPersons);
+        setSelectedPerson((currentPerson) =>
+          currentPerson
+            ? nextPersons.find((person) => person.id === currentPerson.id) ||
+              null
+            : null,
+        );
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setLoadError("Не вдалося завантажити дані з сервера.");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadPersons();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const filteredPersons = useMemo(() => {
     return persons.filter((person) => {
@@ -34,7 +93,9 @@ export function FamilyTreePage() {
         const matchesFacts = person.facts.some((fact) =>
           fact.toLowerCase().includes(query),
         );
-        const matchesDescription = person.description?.toLowerCase().includes(query);
+        const matchesDescription = person.description
+          ?.toLowerCase()
+          .includes(query);
 
         if (!matchesName && !matchesFacts && !matchesDescription) {
           return false;
@@ -49,6 +110,11 @@ export function FamilyTreePage() {
         const isAlive = !person.deathDate;
 
         if (filters.alive === "alive" && !isAlive) {
+          console.log(
+            "Filtering out deceased person:",
+            person.firstName,
+            person.lastName,
+          );
           return false;
         }
 
@@ -65,17 +131,48 @@ export function FamilyTreePage() {
     setSelectedPerson(person);
   };
 
-  const handlePersonSave = (updatedPerson: Person) => {
+  const handlePersonSave = async (updatedPerson: Person) => {
+    if (!user) {
+      return;
+    }
+
+    const savedPerson = await updateFamilyPerson(user.id, updatedPerson);
+
     setPersons((prevPersons) =>
       prevPersons.map((person) =>
-        person.id === updatedPerson.id ? updatedPerson : person,
+        person.id === savedPerson.id ? savedPerson : person,
       ),
     );
-    setSelectedPerson(updatedPerson);
+    setSelectedPerson(savedPerson);
+    toast.success("Дані про члена родини оновлено.");
   };
 
-  const handlePersonAdd = (newPerson: Person) => {
-    setPersons((prevPersons) => [...prevPersons, newPerson]);
+  const handlePersonAdd = async (newPerson: Person) => {
+    if (!user) {
+      return;
+    }
+
+    const createdPerson = await createFamilyPerson(user.id, {
+      firstName: newPerson.firstName,
+      lastName: newPerson.lastName,
+      middleName: newPerson.middleName,
+      maidenName: newPerson.maidenName,
+      birthDate: newPerson.birthDate,
+      deathDate: newPerson.deathDate,
+      avatar: newPerson.avatar,
+      description: newPerson.description,
+      facts: newPerson.facts,
+      photos: newPerson.photos,
+      gender: newPerson.gender,
+      parents: newPerson.parents,
+      children: newPerson.children,
+      spouse: newPerson.spouse,
+    });
+
+    setPersons((prevPersons) => [...prevPersons, createdPerson]);
+    toast.success(
+      `${createdPerson.firstName} ${createdPerson.lastName} додано до дерева.`,
+    );
   };
 
   return (
@@ -102,8 +199,10 @@ export function FamilyTreePage() {
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">
             Показано:{" "}
-            <span className="font-semibold text-purple-600">{filteredPersons.length}</span> з{" "}
-            {persons.length} осіб
+            <span className="font-semibold text-purple-600">
+              {filteredPersons.length}
+            </span>{" "}
+            з {persons.length} осіб
           </span>
           <Button
             onClick={() => setIsAddFormOpen(true)}
@@ -132,8 +231,29 @@ export function FamilyTreePage() {
           className="h-full transition-all duration-300"
           style={{ marginLeft: isSidebarOpen ? "320px" : "0" }}
         >
-          {filteredPersons.length > 0 ? (
-            <FamilyTree persons={filteredPersons} onPersonClick={handlePersonClick} />
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="flex items-center gap-3 rounded-2xl bg-white/85 px-5 py-4 shadow-lg backdrop-blur">
+                <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                <p className="text-sm font-medium text-slate-700">
+                  Завантажуємо дані родини...
+                </p>
+              </div>
+            </div>
+          ) : loadError ? (
+            <div className="flex h-full items-center justify-center px-4">
+              <div className="max-w-md rounded-3xl bg-white/85 p-6 text-center shadow-lg backdrop-blur">
+                <p className="mb-2 text-lg font-semibold text-slate-800">
+                  Сталася помилка завантаження
+                </p>
+                <p className="text-sm text-slate-600">{loadError}</p>
+              </div>
+            </div>
+          ) : filteredPersons.length > 0 ? (
+            <FamilyTree
+              persons={filteredPersons}
+              onPersonClick={handlePersonClick}
+            />
           ) : (
             <div className="flex h-full items-center justify-center">
               <motion.div
@@ -166,7 +286,6 @@ export function FamilyTreePage() {
         isOpen={isAddFormOpen}
         onClose={() => setIsAddFormOpen(false)}
         onAdd={handlePersonAdd}
-        allPersons={persons}
       />
     </div>
   );

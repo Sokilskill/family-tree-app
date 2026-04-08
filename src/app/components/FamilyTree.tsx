@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -30,7 +30,10 @@ export function FamilyTree({ persons, onPersonClick }: FamilyTreeProps) {
     const edges: Edge[] = [];
     const generations = new Map<number, Person[]>();
 
-    const getGeneration = (person: Person, visited = new Set<string>()): number => {
+    const getGeneration = (
+      person: Person,
+      visited = new Set<string>(),
+    ): number => {
       if (visited.has(person.id)) {
         return 0;
       }
@@ -105,8 +108,12 @@ export function FamilyTree({ persons, onPersonClick }: FamilyTreeProps) {
       });
 
       if (person.spouse) {
-        const spouseIndex = persons.findIndex((candidate) => candidate.id === person.spouse);
-        const personIndex = persons.findIndex((candidate) => candidate.id === person.id);
+        const spouseIndex = persons.findIndex(
+          (candidate) => candidate.id === person.spouse,
+        );
+        const personIndex = persons.findIndex(
+          (candidate) => candidate.id === person.id,
+        );
 
         if (personIndex < spouseIndex) {
           edges.push({
@@ -115,7 +122,11 @@ export function FamilyTree({ persons, onPersonClick }: FamilyTreeProps) {
             target: person.spouse,
             type: "straight",
             animated: false,
-            style: { stroke: "#ec4899", strokeWidth: 2, strokeDasharray: "5,5" },
+            style: {
+              stroke: "#ec4899",
+              strokeWidth: 2,
+              strokeDasharray: "5,5",
+            },
             label: "♥",
             labelStyle: { fill: "#ec4899", fontWeight: 700 },
             labelBgStyle: { fill: "white" },
@@ -127,8 +138,13 @@ export function FamilyTree({ persons, onPersonClick }: FamilyTreeProps) {
     return { initialNodes: nodes, initialEdges: edges };
   }, [persons, onPersonClick]);
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialEdges, initialNodes, setEdges, setNodes]);
 
   return (
     <div className="h-full w-full">
