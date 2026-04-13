@@ -1,37 +1,51 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Person } from '../types/person';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Button } from './ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { ScrollArea } from './ui/scroll-area';
-import { User, Edit, Calendar, Heart, FileText, Image as ImageIcon } from 'lucide-react';
-import { PersonEditForm } from './PersonEditForm';
+import { useState } from "react";
+import { Person } from "../types/person";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ScrollArea } from "./ui/scroll-area";
+import {
+  User,
+  Edit,
+  Calendar,
+  Heart,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react";
+import { PersonEditForm } from "./PersonEditForm";
 
 interface PersonDetailsProps {
   person: Person | null;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (person: Person) => void;
+  onSave: (person: Person) => Promise<void>;
   allPersons: Person[];
 }
 
-export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: PersonDetailsProps) {
+export function PersonDetails({
+  person,
+  isOpen,
+  onClose,
+  onSave,
+  allPersons,
+}: PersonDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
 
   if (!person) return null;
 
   const getFullName = () => {
-    const parts = [person.lastName, person.firstName, person.middleName].filter(Boolean);
-    return parts.join(' ');
+    const parts = [person.lastName, person.firstName, person.middleName].filter(
+      Boolean,
+    );
+    return parts.join(" ");
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('uk-UA', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+    return new Date(date).toLocaleDateString("uk-UA", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
     });
   };
 
@@ -44,12 +58,12 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
   };
 
   const getRelativeName = (id: string) => {
-    const relative = allPersons.find(p => p.id === id);
-    return relative ? `${relative.firstName} ${relative.lastName}` : 'Невідомо';
+    const relative = allPersons.find((p) => p.id === id);
+    return relative ? `${relative.firstName} ${relative.lastName}` : "Невідомо";
   };
 
-  const handleSave = (updatedPerson: Person) => {
-    onSave(updatedPerson);
+  const handleSave = async (updatedPerson: Person) => {
+    await onSave(updatedPerson);
     setIsEditing(false);
   };
 
@@ -60,7 +74,6 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
         isOpen={isOpen}
         onClose={() => setIsEditing(false)}
         onSave={handleSave}
-        allPersons={allPersons}
       />
     );
   }
@@ -73,31 +86,45 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20 border-2 border-gray-200">
                 <AvatarImage src={person.avatar} alt={getFullName()} />
-                <AvatarFallback className={person.gender === 'male' ? 'bg-blue-100' : 'bg-pink-100'}>
+                <AvatarFallback
+                  className={
+                    person.gender === "male" ? "bg-blue-100" : "bg-pink-100"
+                  }
+                >
                   <User className="h-10 w-10 text-gray-400" />
                 </AvatarFallback>
               </Avatar>
               <div>
                 <DialogTitle className="text-2xl">{getFullName()}</DialogTitle>
                 {person.maidenName && (
-                  <p className="text-sm text-gray-500">Дівоче прізвище: {person.maidenName}</p>
+                  <p className="text-sm text-gray-500">
+                    Дівоче прізвище: {person.maidenName}
+                  </p>
                 )}
                 <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
                   <Calendar className="h-4 w-4" />
                   {person.birthDate && formatDate(person.birthDate)}
                   {person.deathDate && ` - ${formatDate(person.deathDate)}`}
-                  {getAge() && ` (${getAge()} ${person.deathDate ? 'років' : 'років'})`}
+                  {getAge() &&
+                    ` (${getAge()} ${person.deathDate ? "років" : "років"})`}
                 </div>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+            >
               <Edit className="h-4 w-4 mr-2" />
               Редагувати
             </Button>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="info" className="flex-1 overflow-hidden flex flex-col">
+        <Tabs
+          defaultValue="info"
+          className="flex-1 overflow-hidden flex flex-col"
+        >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="info">Інформація</TabsTrigger>
             <TabsTrigger value="family">Родина</TabsTrigger>
@@ -113,7 +140,7 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
                   Опис
                 </h3>
                 <p className="text-gray-700">
-                  {person.description || 'Опис відсутній'}
+                  {person.description || "Опис відсутній"}
                 </p>
               </div>
             </TabsContent>
@@ -124,11 +151,13 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
                   <Heart className="h-4 w-4" />
                   Родинні зв'язки
                 </h3>
-                
+
                 {person.spouse && (
                   <div className="mb-3">
                     <p className="text-sm text-gray-600 mb-1">Подружжя:</p>
-                    <p className="text-gray-800">{getRelativeName(person.spouse)}</p>
+                    <p className="text-gray-800">
+                      {getRelativeName(person.spouse)}
+                    </p>
                   </div>
                 )}
 
@@ -136,7 +165,7 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
                   <div className="mb-3">
                     <p className="text-sm text-gray-600 mb-1">Батьки:</p>
                     <ul className="list-disc list-inside text-gray-800">
-                      {person.parents.map(parentId => (
+                      {person.parents.map((parentId) => (
                         <li key={parentId}>{getRelativeName(parentId)}</li>
                       ))}
                     </ul>
@@ -147,16 +176,20 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Діти:</p>
                     <ul className="list-disc list-inside text-gray-800">
-                      {person.children.map(childId => (
+                      {person.children.map((childId) => (
                         <li key={childId}>{getRelativeName(childId)}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {!person.spouse && person.parents.length === 0 && person.children.length === 0 && (
-                  <p className="text-gray-500">Інформація про родинні зв'язки відсутня</p>
-                )}
+                {!person.spouse &&
+                  person.parents.length === 0 &&
+                  person.children.length === 0 && (
+                    <p className="text-gray-500">
+                      Інформація про родинні зв'язки відсутня
+                    </p>
+                  )}
               </div>
             </TabsContent>
 
@@ -179,8 +212,15 @@ export function PersonDetails({ person, isOpen, onClose, onSave, allPersons }: P
               {person.photos.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4">
                   {person.photos.map((photo, index) => (
-                    <div key={index} className="rounded-lg overflow-hidden border border-gray-200">
-                      <img src={photo} alt={`Фото ${index + 1}`} className="w-full h-48 object-cover" />
+                    <div
+                      key={index}
+                      className="rounded-lg overflow-hidden border border-gray-200"
+                    >
+                      <img
+                        src={photo}
+                        alt={`Фото ${index + 1}`}
+                        className="w-full h-48 object-cover"
+                      />
                     </div>
                   ))}
                 </div>
