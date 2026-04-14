@@ -10,14 +10,16 @@ export interface Person {
   description?: string;
   facts: string[];
   photos: string[];
-  gender: 'male' | 'female';
+  gender: "male" | "female";
   parents: string[];
   children: string[];
+  partners?: string[];
+  stepParents?: string[];
   spouse?: string;
 }
 
 export interface FamilyTreeFilters {
   generation?: string;
-  gender?: 'all' | 'male' | 'female';
-  alive?: 'all' | 'alive' | 'deceased';
+  gender?: "all" | "male" | "female";
+  alive?: "all" | "alive" | "deceased";
 }
