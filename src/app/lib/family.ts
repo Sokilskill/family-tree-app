@@ -28,6 +28,9 @@ function mapPersonDocument(
   id: string,
   data: Record<string, unknown>,
 ): Person {
+  const partners = toStringArray(data.partners);
+  const spouse = toOptionalString(data.spouse);
+
   return {
     id,
     firstName: typeof data.firstName === "string" ? data.firstName : "",
@@ -43,7 +46,9 @@ function mapPersonDocument(
     gender: data.gender === "female" ? "female" : "male",
     parents: toStringArray(data.parents),
     children: toStringArray(data.children),
-    spouse: toOptionalString(data.spouse),
+    partners: partners.length > 0 ? partners : spouse ? [spouse] : [],
+    stepParents: toStringArray(data.stepParents),
+    spouse,
   };
 }
 
@@ -52,6 +57,8 @@ function getPersonsCollection(uid: string) {
 }
 
 function sanitizePersonPayload(payload: PersonPayload) {
+  const partners = payload.partners?.filter(Boolean) ?? [];
+
   return {
     firstName: payload.firstName.trim(),
     lastName: payload.lastName.trim(),
@@ -66,7 +73,9 @@ function sanitizePersonPayload(payload: PersonPayload) {
     gender: payload.gender,
     parents: payload.parents.filter(Boolean),
     children: payload.children.filter(Boolean),
-    spouse: payload.spouse || "",
+    partners,
+    stepParents: payload.stepParents?.filter(Boolean) ?? [],
+    spouse: partners[0] || payload.spouse || "",
   };
 }
 
