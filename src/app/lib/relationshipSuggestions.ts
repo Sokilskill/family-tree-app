@@ -89,7 +89,11 @@ export function getSuggestedChildren(
       return false;
     }
 
-    if (reference.parents.includes(candidate.id)) {
+
+    if (
+      reference.parents.includes(candidate.id) ||
+      reference.children.includes(candidate.id)
+    ) {
       return false;
     }
 
@@ -117,7 +121,10 @@ export function getSuggestedParents(
       return false;
     }
 
-    if (reference.children.includes(candidate.id)) {
+    if (
+      reference.parents.includes(candidate.id) ||
+      reference.children.includes(candidate.id)
+    ) {
       return false;
     }
 
