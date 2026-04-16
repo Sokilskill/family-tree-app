@@ -57,6 +57,15 @@ function getBirthYear(date?: string) {
   return Number.isNaN(year) ? null : year;
 }
 
+function isDeadBeforeBirth(candidate: Person, reference: PersonReference) {
+  const deathYear = getBirthYear(candidate.deathDate);
+  const birthYear = getBirthYear(reference.birthDate);
+
+  if (deathYear === null || birthYear === null) return false;
+
+  return deathYear < birthYear;
+}
+
 function isAtLeastYearsYounger(
   candidate: PersonReference,
   reference: PersonReference,
@@ -125,6 +134,10 @@ export function getSuggestedParents(
       reference.parents.includes(candidate.id) ||
       reference.children.includes(candidate.id)
     ) {
+      return false;
+    }
+
+    if (candidate.deathDate && isDeadBeforeBirth(candidate, reference)) {
       return false;
     }
 
