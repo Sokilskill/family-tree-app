@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useForm } from "react-hook-form";
 import { Loader2, Plus, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Person } from "../types/person";
+import {
+  getSuggestedChildren,
+  getSuggestedPartners,
+  getSuggestedParents,
+} from "../lib/relationshipSuggestions";
 import { Button } from "./ui/button";
+import { RelationshipInputSelector } from "./RelationshipSelector";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +34,8 @@ interface AddPersonFormProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (person: Person) => Promise<void>;
+  onCreatePerson?: (person: Person) => Promise<Person | null>;
+  allPersons: Person[];
 }
 
 interface PersonFormData {
@@ -41,24 +49,93 @@ interface PersonFormData {
   description?: string;
 }
 
-export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
+export function AddPersonForm({
+  isOpen,
+  onClose,
+  onAdd,
+  onCreatePerson,
+  allPersons,
+}: AddPersonFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [facts, setFacts] = useState<string[]>([]);
   const [currentFact, setCurrentFact] = useState("");
-  const [selectedGender, setSelectedGender] = useState<"male" | "female">("male");
+  const [selectedGender, setSelectedGender] = useState<"male" | "female">(
+    "male",
+  );
+  const [selectedParentIds, setSelectedParentIds] = useState<string[]>([]);
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<string[]>([]);
+  const [isCreateParentOpen, setIsCreateParentOpen] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<PersonFormData>();
+
+  const watchedLastName = watch("lastName");
+  const watchedMaidenName = watch("maidenName");
+  const watchedBirthDate = watch("birthDate");
+
+  const draftPerson = useMemo(
+    () => ({
+      id: "__new__",
+      lastName: watchedLastName || "",
+      maidenName: watchedMaidenName,
+      birthDate: watchedBirthDate,
+      parents: selectedParentIds,
+      children: selectedChildIds,
+      gender: selectedGender,
+    }),
+    [
+      selectedChildIds,
+      selectedParentIds,
+      watchedBirthDate,
+      watchedLastName,
+      watchedMaidenName,
+      selectedGender,
+    ],
+  );
+
+  const suggestedChildren = useMemo(
+    () => getSuggestedChildren(allPersons, draftPerson),
+    [allPersons, draftPerson],
+  );
+
+  const suggestedParents = useMemo(
+    () => getSuggestedParents(allPersons, draftPerson),
+    [allPersons, draftPerson],
+  );
+
+  const suggestedPartners = useMemo(
+    () => getSuggestedPartners(allPersons, draftPerson),
+    [allPersons, draftPerson],
+  );
+
+  const handleCreateParent = async (parent: Person) => {
+    if (!onCreatePerson) {
+      return;
+    }
+
+    const createdPerson = await onCreatePerson(parent);
+    if (!createdPerson) {
+      return;
+    }
+
+    setSelectedParentIds((previous) => [...previous, createdPerson.id]);
+    setIsCreateParentOpen(false);
+  };
 
   const handleClose = () => {
     reset();
     setFacts([]);
     setCurrentFact("");
     setSelectedGender("male");
+    setSelectedParentIds([]);
+    setSelectedChildIds([]);
+    setSelectedPartnerIds([]);
     onClose();
   };
 
@@ -93,8 +170,10 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
         description: data.description,
         facts,
         photos: [],
-        parents: [],
-        children: [],
+        parents: selectedParentIds,
+        children: selectedChildIds,
+        partners: selectedPartnerIds,
+        spouse: selectedPartnerIds[0],
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.firstName}${data.lastName}`,
       };
 
@@ -131,15 +210,17 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firstName">
-                  Ім&apos;я <span className="text-red-500">*</span>
+                  Ім'я <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="firstName"
                   placeholder="Іван"
-                  className="rounded-xl"
                   {...register("firstName", {
-                    required: "Ім&apos;я обов&apos;язкове",
-                    minLength: { value: 2, message: "Мінімум 2 символи" },
+                    required: "Ім'я обов'язкове",
+                    minLength: {
+                      value: 2,
+                      message: "Мінімум 2 символи",
+                    },
                   })}
                 />
                 {errors.firstName ? (
@@ -159,10 +240,12 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
                 <Input
                   id="lastName"
                   placeholder="Петренко"
-                  className="rounded-xl"
                   {...register("lastName", {
-                    required: "Прізвище обов&apos;язкове",
-                    minLength: { value: 2, message: "Мінімум 2 символи" },
+                    required: "Прізвище обов'язкове",
+                    minLength: {
+                      value: 2,
+                      message: "Мінімум 2 символи",
+                    },
                   })}
                 />
                 {errors.lastName ? (
@@ -182,7 +265,6 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
                 <Input
                   id="middleName"
                   placeholder="Миколайович"
-                  className="rounded-xl"
                   {...register("middleName")}
                 />
               </div>
@@ -191,7 +273,6 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
                 <Input
                   id="maidenName"
                   placeholder="Іванова"
-                  className="rounded-xl"
                   {...register("maidenName")}
                 />
               </div>
@@ -225,21 +306,11 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Дата народження</Label>
-                <Input
-                  id="birthDate"
-                  type="date"
-                  className="rounded-xl"
-                  {...register("birthDate")}
-                />
+                <Input id="birthDate" type="date" {...register("birthDate")} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="deathDate">Дата смерті</Label>
-                <Input
-                  id="deathDate"
-                  type="date"
-                  className="rounded-xl"
-                  {...register("deathDate")}
-                />
+                <Input id="deathDate" type="date" {...register("deathDate")} />
               </div>
             </div>
           </div>
@@ -249,15 +320,78 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
             <Textarea
               id="description"
               placeholder="Розкажіть про цю людину..."
-              className="min-h-24 resize-none rounded-xl"
+              className="min-h-24 max-h-60  rounded-xl"
               {...register("description")}
             />
           </div>
 
+          <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-lg font-semibold">
+              <div className="h-5 w-1 rounded-full bg-gradient-to-b from-purple-600 to-pink-600" />
+              Родинні зв&apos;язки
+            </h3>
+            <RelationshipInputSelector
+              label="Батьки"
+              persons={allPersons.filter(
+                (candidate) => candidate.id !== "__new__",
+              )}
+              priorityIds={suggestedParents.map((candidate) => candidate.id)}
+              selectedIds={selectedParentIds}
+              onChange={setSelectedParentIds}
+              maxSelections={4}
+              showSuggestions={Boolean(watchedLastName && watchedBirthDate)}
+              onCreateNewPerson={
+                onCreatePerson ? () => setIsCreateParentOpen(true) : undefined
+              }
+              placeholder="Пошук батьків за ім'ям або прізвищем"
+              emptyText="Спочатку додайте інших осіб, щоб можна було вказати батьків."
+            />
+            {onCreatePerson ? (
+              <AddPersonForm
+                isOpen={isCreateParentOpen}
+                onClose={() => setIsCreateParentOpen(false)}
+                onAdd={handleCreateParent}
+                onCreatePerson={onCreatePerson}
+                allPersons={allPersons}
+              />
+            ) : null}
+            <RelationshipInputSelector
+              label="Діти"
+              persons={allPersons.filter(
+                (candidate) => candidate.id !== "__new__",
+              )}
+              priorityIds={suggestedChildren.map((candidate) => candidate.id)}
+              selectedIds={selectedChildIds}
+              onChange={setSelectedChildIds}
+              showSuggestions={Boolean(watchedLastName && watchedBirthDate)}
+              onCreateNewPerson={
+                onCreatePerson ? () => setIsCreateParentOpen(true) : undefined
+              }
+              placeholder="Пошук дітей за ім'ям або прізвищем"
+            />
+            <RelationshipInputSelector
+              label="Подружжя"
+              persons={allPersons.filter(
+                (candidate) => candidate.id !== "__new__",
+              )}
+              priorityIds={suggestedPartners.map((candidate) => candidate.id)}
+              selectedIds={selectedPartnerIds}
+              onChange={setSelectedPartnerIds}
+              maxSelections={2}
+              showSuggestions={Boolean(watchedLastName && watchedBirthDate)}
+              onCreateNewPerson={
+                onCreatePerson ? () => setIsCreateParentOpen(true) : undefined
+              }
+              placeholder="Пошук подружжя за ім'ям або прізвищем"
+              emptyText="Немає схожих за прізвищем осіб, які підходять для подружжя. Створіть їх спочатку, щоб вони з'явилися тут як пропозиції."
+            />
+          </div>
+
           <div className="space-y-3">
-            <Label>Факти та історії</Label>
+            <Label htmlFor="fact">Факти та історії</Label>
             <div className="flex gap-2">
               <Input
+                id="fact"
                 value={currentFact}
                 onChange={(event) => setCurrentFact(event.target.value)}
                 onKeyDown={(event) => {
@@ -267,7 +401,6 @@ export function AddPersonForm({ isOpen, onClose, onAdd }: AddPersonFormProps) {
                   }
                 }}
                 placeholder="Додати факт або історію..."
-                className="flex-1 rounded-xl"
               />
               <Button
                 type="button"
