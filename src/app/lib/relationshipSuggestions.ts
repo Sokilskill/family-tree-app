@@ -98,7 +98,6 @@ export function getSuggestedChildren(
       return false;
     }
 
-
     if (
       reference.parents.includes(candidate.id) ||
       reference.children.includes(candidate.id)
@@ -157,7 +156,10 @@ export function getSuggestedPartners(
   }
 
   return persons.filter((candidate) => {
-    if (candidate.id === reference.id) {
+    if (candidate.id === reference.id) return false;
+    if (candidate.gender === reference.gender) return false;
+
+    if (candidate.partners && candidate.partners.length !== 0) {
       return false;
     }
 
@@ -168,13 +170,24 @@ export function getSuggestedPartners(
       return false;
     }
 
-    if (candidate.gender === reference.gender) {
+    const hasCommonParent = candidate.parents.some((id) =>
+      reference.parents.includes(id),
+    );
+    const hasCommonChild = candidate.children.some((id) =>
+      reference.children.includes(id),
+    );
+    const isAgeGapOk =
+      !isAtLeastYearsYounger(candidate, reference, 18) &&
+      !isAtLeastYearsYounger(reference, candidate, 18);
+
+    if (hasCommonParent) {
       return false;
     }
 
-    return (
-      haveSimilarSurname(candidate, reference) &&
-      !isAtLeastYearsYounger(candidate, reference, 18)
-    );
+    if (hasCommonChild) {
+      return candidate;
+    }
+
+    return haveSimilarSurname(candidate, reference) && isAgeGapOk;
   });
 }
