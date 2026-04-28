@@ -13,6 +13,8 @@ import {
   FileText,
   Image as ImageIcon,
 } from "lucide-react";
+
+import { getPartnerIds, getStepParentIds } from "../lib/relationships";
 import { PersonEditForm } from "./PersonEditForm";
 
 interface PersonDetailsProps {
@@ -20,6 +22,7 @@ interface PersonDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (person: Person) => Promise<void>;
+  onCreatePerson?: (person: Person) => Promise<Person | null>;
   allPersons: Person[];
 }
 
@@ -28,6 +31,7 @@ export function PersonDetails({
   isOpen,
   onClose,
   onSave,
+  onCreatePerson,
   allPersons,
 }: PersonDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -51,6 +55,7 @@ export function PersonDetails({
 
   const getAge = () => {
     if (!person.birthDate) return null;
+
     const birth = new Date(person.birthDate);
     const end = person.deathDate ? new Date(person.deathDate) : new Date();
     const age = end.getFullYear() - birth.getFullYear();
@@ -74,9 +79,14 @@ export function PersonDetails({
         isOpen={isOpen}
         onClose={() => setIsEditing(false)}
         onSave={handleSave}
+        onCreatePerson={onCreatePerson}
+        allPersons={allPersons}
       />
     );
   }
+
+  const partners = getPartnerIds(person);
+  const stepParents = getStepParentIds(person);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -105,8 +115,7 @@ export function PersonDetails({
                   <Calendar className="h-4 w-4" />
                   {person.birthDate && formatDate(person.birthDate)}
                   {person.deathDate && ` - ${formatDate(person.deathDate)}`}
-                  {getAge() &&
-                    ` (${getAge()} ${person.deathDate ? "років" : "років"})`}
+                  {getAge() ? ` (${getAge()} років)` : ""}
                 </div>
               </div>
             </div>
@@ -149,15 +158,17 @@ export function PersonDetails({
               <div>
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <Heart className="h-4 w-4" />
-                  Родинні зв'язки
+                  Родинні зв&apos;язки
                 </h3>
 
-                {person.spouse && (
+                {partners.length > 0 && (
                   <div className="mb-3">
                     <p className="text-sm text-gray-600 mb-1">Подружжя:</p>
-                    <p className="text-gray-800">
-                      {getRelativeName(person.spouse)}
-                    </p>
+                    <ul className="list-disc list-inside text-gray-800">
+                      {partners.map((partnerId) => (
+                        <li key={partnerId}>{getRelativeName(partnerId)}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
@@ -167,6 +178,21 @@ export function PersonDetails({
                     <ul className="list-disc list-inside text-gray-800">
                       {person.parents.map((parentId) => (
                         <li key={parentId}>{getRelativeName(parentId)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {stepParents.length > 0 && (
+                  <div className="mb-3">
+                    <p className="mb-1 text-sm text-gray-600">
+                      Вітчим / мачуха:
+                    </p>
+                    <ul className="list-disc list-inside text-gray-800">
+                      {stepParents.map((stepParentId) => (
+                        <li key={stepParentId}>
+                          {getRelativeName(stepParentId)}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -183,11 +209,12 @@ export function PersonDetails({
                   </div>
                 )}
 
-                {!person.spouse &&
+                {partners.length === 0 &&
                   person.parents.length === 0 &&
+                  stepParents.length === 0 &&
                   person.children.length === 0 && (
                     <p className="text-gray-500">
-                      Інформація про родинні зв'язки відсутня
+                      Інформація про родинні зв&apos;язки відсутня
                     </p>
                   )}
               </div>
