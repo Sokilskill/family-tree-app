@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { ReactNode } from "react";
@@ -25,13 +25,20 @@ export function Sidebar({ isOpen, onToggle, title, children }: SidebarProps) {
             {title}
           </h2>
 
-          <Button variant="ghost" size="icon" onClick={onToggle}>
-            {isOpen ? (
-              <ChevronLeft className="h-6 w-6" />
-            ) : (
-              <ChevronRight className="h-6 w-6" />
-            )}
-          </Button>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={isOpen ? "open" : "closed"}
+              initial={{ opacity: 0, rotate: isOpen ? -90 : 90 }}
+              animate={{ opacity: 1, rotate: 0 }}
+              exit={{ opacity: 0, rotate: isOpen ? 90 : -90 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center justify-center"
+            >
+              <Button variant="ghost" size="icon" onClick={onToggle}>
+                {isOpen ? <ChevronLeft /> : <ChevronRight />}
+              </Button>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {isOpen && (
